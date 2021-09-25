@@ -1,9 +1,11 @@
 import pygame
+from pygame.sprite import Sprite
 
-class Ship:
+class Ship(Sprite):
     """A class that represents the star ship"""
     def __init__(self, ai_game):
         """init method"""
+        super().__init__()
         self.boundaries = [ai_game.settings.width, ai_game.settings.height]
         self.screen = ai_game.screen
         self.screen_rect = ai_game.screen.get_rect()
@@ -33,3 +35,8 @@ class Ship:
     def blitm(self):
         """Method to draw the ship"""
         self.screen.blit(self.image, self.rect)
+    
+    def center_ship(self):
+        """ move the ship back to center """
+        self.rect.midbottom = self.screen.midbottom
+        self.x = float(self.rect.x)

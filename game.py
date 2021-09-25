@@ -5,7 +5,10 @@ import settings
 from pygame.constants import K_DOLLAR, K_DOWN, K_LEFT, K_RIGHT, K_UP, KEYDOWN, WINDOWHITTEST, K_a, K_s, K_w
 from ship import Ship
 from bullet import Bullet
+from super_bullet import SuperBullet
 from alien import Alien
+from time import sleep
+from game_stats import GameStats
 
 class AlienInvasion:
     """Overall class to manage game assets and behavior."""
@@ -18,14 +21,16 @@ class AlienInvasion:
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.stats = GameStats(self)
 
     def run_game(self):
         """Start the main loop for the game."""
         self._create_fleet()
         while True:
             self._check_events()
+            self._update_aliens()
             self._update_screen()
-            self._remove_old_bullets()
+
 
 
 
@@ -46,6 +51,8 @@ class AlienInvasion:
                     key_on_dict['down'] = True
                 if event.key == pygame.K_SPACE:
                     self._fire_bullet()
+                if event.key == pygame.K_e:
+                    self._fire_super_bullet()
             if event.type == pygame.KEYUP:
                 if event.key in [pygame.K_RIGHT, pygame.K_a]:
                     key_on_dict['right'] = False
@@ -71,8 +78,7 @@ class AlienInvasion:
         self.screen.fill(self.settings.background_color)
         self.bullets.update()
         self.ship.blitm()
-        for bullet in self.bullets.sprites():
-            bullet.draw()
+        self._update_bullets()
         self.aliens.draw(self.screen)
         pygame.display.flip()
 
@@ -100,16 +106,73 @@ class AlienInvasion:
         alien.rect.y = alien_height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
 
+    def _update_aliens(self):
+        """ update the alien fleet """
+        self._check_fleet_edge()
+        self.aliens.update()
+        if self._detect_alian_ship_collision():
+            self._ship_hit()
+
+    def _check_fleet_edge(self):
+        """ handle aliens on edges """
+        for alien in self.aliens.sprites():
+            if alien.check_edges():
+                self._change_fleet_direction()
+                break
+
+    def _change_fleet_direction(self):
+        """ drop the fleet one line and change the direction """
+        for alien in self.aliens.sprites():
+            alien.rect.y += self.settings.fleet_drop_speed
+        self.settings.fleet_direction *= -1
+
     def _fire_bullet(self):
         """A method to shoot a bullet from the spaceship"""
         bullet = Bullet(self)
         self.bullets.add(bullet)
 
-    def _remove_old_bullets(self):
-        """delete the bullets out of the screen"""
-        for bullet in self.bullets.copy():
+    def _fire_super_bullet(self):
+        bullet = SuperBullet (self)
+        self.bullets.add(bullet)
+
+    def _update_bullets(self):
+        """ update bullets position and remove old bullets """
+        for bullet in self.bullets.sprites():
+            bullet.draw()
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
+        self._detect_bullet_alian_collision()
+    
+    def _detect_bullet_alian_collision(self):
+        """ as the name sugests """
+        collisions = pygame.sprite.groupcollide(self.bullets, self.aliens, True, True)
+        if not self.aliens:
+            self.bullets.empty()
+            self._create_fleet()
+
+    def _detect_alian_ship_collision(self):
+        """ same """
+        if pygame.sprite.spritecollideany(self.ship, self.aliens):
+            print("Game Over")
+            return True
+        return False
+
+    def _ship_hit(self):
+        """ handles ship being hit """
+        self.stats -= 1
+        self.aliens.empty()
+        self.bullets.empty()
+        self._create_fleet()
+        self.ship.center_ship()
+        sleep(.5)
+
+    def _check_aliens_bottom(self):
+        """ checks if aliens have reached the bottom of the screen """
+        screen_rect = self.screen.get_rect()
+        for alien in self.aliens.sprites():
+            if alien.rect.bottom >= screen_rect.bottom:
+                self._ship_hit()
+                break
 
 if __name__ == '__main__':
     # Make a game instance, and run the game.
